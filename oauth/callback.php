@@ -26,4 +26,4 @@ $data = json_decode($response, true);
 
 file_put_contents(__DIR__ . '/../token.txt', $data['access_token']);
 
-echo "✅ App instalada correctamente. Token guardado.";
+echo "✅ App instalada correctamente. Token guardado.".$data['access_token'];
