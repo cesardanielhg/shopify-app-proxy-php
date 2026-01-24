@@ -1,5 +1,5 @@
 <?php
-error_log('CUSTOMER TAG ENDPOINT HIT');
+error_log('--- APP PROXY REQUEST ---');
 error_log(print_r($_GET, true));
 
 
@@ -10,9 +10,9 @@ $data = $_GET;
 
 $shop = $_SERVER['HTTP_X_SHOPIFY_SHOP_DOMAIN'] ?? null;
 $customerId = $data['customer_id'] ?? null;
-$tags = $data['tags'] ?? null;
+$tags = $data['tags'] ?? [];
 
-if (!$shop || !$customerId || empty($tags)) {
+if (!$shop || !$customerId || empty($tags) || !is_array($tags)) {
   echo json_encode(['success' => false, 'error' => 'Invalid request']);
   exit;
 }
