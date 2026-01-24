@@ -1,4 +1,8 @@
 <?php
+error_log('App Proxy called');
+error_log(print_r($_GET, true));
+
+
 header('Content-Type: application/json');
 
 // App Proxy = GET
