@@ -1,5 +1,5 @@
 <?php
-error_log('App Proxy called');
+error_log('CUSTOMER TAG ENDPOINT HIT');
 error_log(print_r($_GET, true));
 
 
