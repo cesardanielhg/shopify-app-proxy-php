@@ -2,17 +2,17 @@
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-switch ($path) {
-
-  case '/oauth/callback':
-    require __DIR__ . '/oauth/callback.php';
-    exit;
-
-  case '/apps/customer-tags':
-    require __DIR__ . '/customer.php';
-    exit;
-
-  default:
-    echo 'PHP backend running';
-    exit;
+// App Proxy (NO comparación exacta)
+if (strpos($path, '/apps/customer-tags') === 0) {
+  require __DIR__ . '/customer.php';
+  exit;
 }
+
+// OAuth
+if (strpos($path, '/oauth/callback') === 0) {
+  require __DIR__ . '/oauth/callback.php';
+  exit;
+}
+
+// Default
+echo 'PHP backend running';
