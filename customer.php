@@ -1,9 +1,9 @@
 <?php
 
 
-$SHOPIFY_SECRET = $_ENV['SHOPIFY_API_SECRET'];
-$SHOP = $_ENV['SHOP'];
-$TOKEN = $_ENV['SHOPIFY_ADMIN_TOKEN'];
+$SHOPIFY_SECRET = getenv('SHOPIFY_API_SECRET'); 
+$SHOP = getenv('SHOP'); 
+$TOKEN = getenv('SHOPIFY_ADMIN_TOKEN');
 
 header('Content-Type: application/json');
 
