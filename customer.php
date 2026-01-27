@@ -26,7 +26,7 @@ if (!$shop || !$customerId || empty($tags) || !is_array($tags)) {
 
 $ACCESS_TOKEN = getenv('SHOPIFY_ADMIN_TOKEN');
 $API_VERSION = '2024-10';
-
+error_log('--- TOKEN ---');
 /**
  * Obtener cliente
  */
@@ -40,7 +40,7 @@ curl_setopt_array($ch, [
   ]
 ]);
 
-
+error_log('--- CURL INIT---');
 
 
 $response = curl_exec($ch);
@@ -51,6 +51,7 @@ if (!$customer) {
   echo json_encode(['success' => false]);
   exit;
 }
+
 error_log('GET CUSTOMER RESPONSE: ' . $response);
 
 $currentTags = array_filter(array_map('trim', explode(',', $customer['tags'])));
