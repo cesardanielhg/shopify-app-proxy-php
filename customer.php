@@ -1,98 +1,90 @@
 <?php
+error_log('--- APP PROXY REQUEST ---');
+error_log(print_r($_GET, true));
 
 
-$SHOPIFY_SECRET = getenv('SHOPIFY_API_SECRET'); 
-$SHOP = getenv('SHOP'); 
-$TOKEN = getenv('SHOPIFY_ADMIN_TOKEN');
 
 header('Content-Type: application/json');
 
-/* -------------------------------------------------
-   1. Validar método
---------------------------------------------------*/
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+// App Proxy = GET
+$data = $_GET;
+
+$shop = $_SERVER['HTTP_X_SHOPIFY_SHOP_DOMAIN'] ?? null;
+$customerId = $data['customer_id'] ?? null;
+$tags = $data['tags'] ?? [];
+
+
+error_log('--- START SAVE TAGS ---');
+error_log('Customer ID: ' . $customerId);
+error_log('Tags received: ' . print_r($tags, true));
+
+
+if (!$shop || !$customerId || empty($tags) || !is_array($tags)) {
   echo json_encode(['success' => false, 'error' => 'Invalid request']);
   exit;
 }
 
-/* -------------------------------------------------
-   2. Validar HMAC (App Proxy)
---------------------------------------------------*/
-$params = $_POST;
-$hmac = $_GET['hmac'] ?? '';
+$ACCESS_TOKEN = getenv('SHOPIFY_ADMIN_TOKEN');
+$API_VERSION = '2024-10';
 
-unset($params['hmac']);
-ksort($params);
+/**
+ * Obtener cliente
+ */
+$getUrl = "https://$shop/admin/api/$API_VERSION/customers/$customerId.json";
 
-$query = urldecode(http_build_query($params));
-$calculated = hash_hmac('sha256', $query, $SHOPIFY_SECRET);
+$ch = curl_init($getUrl);
+curl_setopt_array($ch, [
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_HTTPHEADER => [
+    "X-Shopify-Access-Token: $ACCESS_TOKEN"
+  ]
+]);
 
-if (!hash_equals($hmac, $calculated)) {
-  echo json_encode(['success' => false, 'error' => 'HMAC validation failed']);
+
+
+
+$response = curl_exec($ch);
+curl_close($ch);
+
+$customer = json_decode($response, true)['customer'] ?? null;
+if (!$customer) {
+  echo json_encode(['success' => false]);
   exit;
 }
+error_log('GET CUSTOMER RESPONSE: ' . $response);
 
-/* -------------------------------------------------
-   3. Validar customer
---------------------------------------------------*/
-$customerId = $_POST['customer_id'] ?? null;
-if (!$customerId) {
-  echo json_encode(['success' => false, 'error' => 'Missing customer ID']);
-  exit;
-}
+$currentTags = array_filter(array_map('trim', explode(',', $customer['tags'])));
+$finalTags = array_unique(array_merge($currentTags, $tags));
 
-/* -------------------------------------------------
-   4. Construir tags nuevos
---------------------------------------------------*/
-$tags = [];
+/**
+ * Guardar
+ */
+$putUrl = "https://$shop/admin/api/$API_VERSION/customers/$customerId.json";
 
-foreach ($_POST as $key => $value) {
-  if (in_array($key, ['gender_','dob_', 'nationality_', 'phone_', 'profile_completed']) && !empty($value)) {
-    $tags[] = $key;
-  }
-}
 
-if (empty($tags)) {
-  echo json_encode(['success' => false, 'error' => 'No tags to save']);
-  exit;
-}
-
-/* -------------------------------------------------
-   5. Shopify Admin API
---------------------------------------------------*/
-$url = "https://$SHOP/admin/api/2025-01/customers/$customerId.json";
 
 $payload = json_encode([
   'customer' => [
     'id' => $customerId,
-    'tags' => implode(',', $tags)
+    'tags' => implode(', ', $finalTags)
   ]
 ]);
 
-$ch = curl_init($url);
+error_log('PUT PAYLOAD: ' . $payload);
+
+
+$ch = curl_init($putUrl);
 curl_setopt_array($ch, [
-  CURLOPT_RETURNTRANSFER => true,
   CURLOPT_CUSTOMREQUEST => 'PUT',
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_POSTFIELDS => $payload,
   CURLOPT_HTTPHEADER => [
-    "X-Shopify-Access-Token: $TOKEN",
-    "Content-Type: application/json"
-  ],
-  CURLOPT_POSTFIELDS => $payload
+    "Content-Type: application/json",
+    "X-Shopify-Access-Token: $ACCESS_TOKEN"
+  ]
 ]);
 
-$response = curl_exec($ch);
-$http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_exec($ch);
 curl_close($ch);
 
-/* -------------------------------------------------
-   6. Respuesta final
---------------------------------------------------*/
-if ($http >= 200 && $http < 300) {
-  echo json_encode(['success' => true]);
-} else {
-  echo json_encode([
-    'success' => false,
-    'error' => 'Shopify API error',
-    'response' => $response
-  ]);
-}
+echo json_encode(['success' => true]);
