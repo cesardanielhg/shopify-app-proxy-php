@@ -18,8 +18,14 @@ error_log('--- START SAVE TAGS ---');
 error_log('Customer ID: ' . $customerId);
 error_log('Tags received: ' . print_r($tags, true));
 
-
+/*
 if (!$shop || !$customerId || empty($tags) || !is_array($tags)) {
+  echo json_encode(['success' => false, 'error' => 'Invalid request']);
+  exit;
+}
+*/
+
+if (!$shop || !$customerId || empty($tags)) {
   echo json_encode(['success' => false, 'error' => 'Invalid request']);
   exit;
 }
