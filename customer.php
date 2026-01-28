@@ -23,12 +23,13 @@ if (!$shop || !$customerId || empty($tags) || !is_array($tags)) {
   echo json_encode(['success' => false, 'error' => 'Invalid request']);
   exit;
 }
-*/
+
 
 if (!$shop || !$customerId || empty($tags)) {
   echo json_encode(['success' => false, 'error' => 'Invalid request']);
   exit;
 }
+*/ 
 
 $ACCESS_TOKEN = getenv('SHOPIFY_ADMIN_TOKEN');
 $API_VERSION = '2024-10';
