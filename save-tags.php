@@ -3,55 +3,53 @@
 // Subir a Railway
 
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0); // Desactivar para no contaminar JSON
 
+// Solo enviar JSON limpio
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Función de log
-function logMessage($message, $data = null) {
+// Función de log que guarda en archivo
+function logToFile($message, $data = null) {
     $log = date('[Y-m-d H:i:s] ') . $message;
     if ($data !== null) {
-        $log .= ' | Data: ' . json_encode($data);
+        $log .= ' | Data: ' . json_encode($data, JSON_PRETTY_PRINT);
     }
-    error_log($log);
-    echo json_encode(['log' => $log]) . "\n";
-    flush();
+    $log .= "\n";
+    file_put_contents('debug.log', $log, FILE_APPEND);
 }
 
-logMessage('🚀 Script iniciado');
+logToFile('🚀 Script iniciado');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    logMessage('✅ Método POST detectado');
+    logToFile('✅ Método POST detectado');
     
     $rawInput = file_get_contents('php://input');
-    logMessage('📥 Raw input recibido', $rawInput);
+    logToFile('📥 Raw input recibido', $rawInput);
     
     $data = json_decode($rawInput, true);
     
     if (!$data) {
-        logMessage('❌ Error al decodificar JSON');
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+        logToFile('❌ Error al decodificar JSON');
+        echo json_encode(['success' => false, 'error' => 'Invalid JSON', 'raw' => $rawInput]);
         exit;
     }
     
-    logMessage('✅ JSON decodificado correctamente', $data);
+    logToFile('✅ JSON decodificado correctamente', $data);
     
     $customerId = $data['customer_id'] ?? null;
     $newTags = $data['tags'] ?? [];
     $shop = $data['shop'] ?? null;
     
-    logMessage('👤 Customer ID', $customerId);
-    logMessage('🏷️ Nuevos tags', $newTags);
-    logMessage('🏪 Shop', $shop);
+    logToFile('👤 Customer ID', $customerId);
+    logToFile('🏷️ Nuevos tags', $newTags);
+    logToFile('🏪 Shop', $shop);
     
     if (!$customerId || !$shop || empty($newTags)) {
-        logMessage('❌ Faltan datos requeridos');
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Missing required fields']);
+        logToFile('❌ Faltan datos requeridos');
+        echo json_encode(['success' => false, 'error' => 'Missing required fields: customer_id, shop, or tags']);
         exit;
     }
     
@@ -59,11 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $shopifyToken = getenv('SHOPIFY_ADMIN_TOKEN');
     $apiVersion = '2024-01';
     
-    logMessage('🔑 Token configurado (primeros 10 chars)', substr($shopifyToken, 0, 10) . '...');
+    logToFile('🔑 Token configurado');
     
     // Obtener tags actuales del cliente
     $url = "https://{$shop}/admin/api/{$apiVersion}/customers/{$customerId}.json";
-    logMessage('📡 URL de Shopify', $url);
+    logToFile('📡 URL de Shopify', $url);
     
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -72,42 +70,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         "Content-Type: application/json"
     ]);
     
-    logMessage('📥 Obteniendo datos actuales del cliente...');
+    logToFile('📥 Obteniendo datos actuales del cliente...');
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     
-    logMessage('📊 HTTP Code GET', $httpCode);
+    logToFile('📊 HTTP Code GET', $httpCode);
+    logToFile('📄 Response GET', $response);
     
     if ($httpCode !== 200) {
-        logMessage('❌ Error al obtener cliente', $response);
+        logToFile('❌ Error al obtener cliente');
         curl_close($ch);
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Failed to fetch customer', 'details' => $response]);
+        echo json_encode(['success' => false, 'error' => 'Failed to fetch customer from Shopify', 'http_code' => $httpCode, 'response' => $response]);
         exit;
     }
     
     $customerData = json_decode($response, true);
-    logMessage('✅ Datos del cliente obtenidos', $customerData);
+    logToFile('✅ Datos del cliente obtenidos', $customerData);
     
     $customer = $customerData['customer'] ?? null;
     if (!$customer) {
-        logMessage('❌ No se encontró el objeto customer en la respuesta');
+        logToFile('❌ No se encontró el objeto customer');
         curl_close($ch);
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Customer object not found']);
+        echo json_encode(['success' => false, 'error' => 'Customer object not found in Shopify response']);
         exit;
     }
     
     $currentTags = $customer['tags'] ? explode(', ', $customer['tags']) : [];
-    logMessage('🏷️ Tags actuales del cliente', $currentTags);
+    logToFile('🏷️ Tags actuales del cliente', $currentTags);
     
     // Agregar nuevos tags
     $allTags = array_merge($currentTags, $newTags);
     $allTags = array_unique($allTags);
     $tagsString = implode(', ', $allTags);
     
-    logMessage('🔄 Tags combinados', $allTags);
-    logMessage('📝 String final de tags', $tagsString);
+    logToFile('🔄 Tags combinados', $allTags);
+    logToFile('📝 String final de tags', $tagsString);
     
     // Actualizar cliente
     $updateData = [
@@ -118,31 +115,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ];
     
     $updateJson = json_encode($updateData);
-    logMessage('📤 Datos de actualización', $updateJson);
+    logToFile('📤 Datos de actualización', $updateData);
     
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
     curl_setopt($ch, CURLOPT_POSTFIELDS, $updateJson);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "X-Shopify-Access-Token: {$shopifyToken}",
+        "Content-Type: application/json"
+    ]);
     
-    logMessage('🔄 Actualizando cliente en Shopify...');
+    logToFile('🔄 Actualizando cliente en Shopify...');
     $result = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
-    logMessage('📊 HTTP Code PUT', $httpCode);
-    logMessage('📥 Respuesta de Shopify', $result);
+    logToFile('📊 HTTP Code PUT', $httpCode);
+    logToFile('📥 Respuesta PUT', $result);
     
     if ($httpCode === 200) {
-        logMessage('✅ Cliente actualizado exitosamente');
-        echo json_encode(['success' => true, 'tags' => $allTags]);
+        logToFile('✅ Cliente actualizado exitosamente');
+        echo json_encode(['success' => true, 'tags' => $allTags, 'message' => 'Customer updated successfully']);
     } else {
-        logMessage('❌ Error al actualizar cliente');
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Failed to update customer', 'details' => $result, 'http_code' => $httpCode]);
+        logToFile('❌ Error al actualizar cliente');
+        echo json_encode(['success' => false, 'error' => 'Failed to update customer in Shopify', 'http_code' => $httpCode, 'response' => $result]);
     }
 } else {
-    logMessage('❌ Método no permitido', $_SERVER['REQUEST_METHOD']);
-    http_response_code(405);
-    echo json_encode(['error' => 'Method not allowed']);
+    logToFile('❌ Método no permitido', $_SERVER['REQUEST_METHOD']);
+    echo json_encode(['success' => false, 'error' => 'Method not allowed. Use POST.']);
 }
 ?>
