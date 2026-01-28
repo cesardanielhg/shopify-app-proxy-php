@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $shop = $data['shop'];
     
     // Tu configuración de Shopify
-    $shopifyToken = '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';
+    $shopifyToken = getenv('SHOPIFY_ADMIN_TOKEN');
     $apiVersion = '2024-01';
     
     // Obtener tags actuales del cliente
