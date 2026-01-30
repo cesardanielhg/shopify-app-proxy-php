@@ -225,7 +225,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         logToFile('❌ Error al actualizar');
         echo json_encode([
             'success' => false, 
-            'error' => 'Failed to update customer in Shopify',
+            'error' => '❌Failed to update customer in Shopify',
             'http_code' => $putHttpCode,
             'shopify_response' => $putResponse
         ]);
