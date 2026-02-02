@@ -2,6 +2,11 @@
 // save-tags.php
 // Subir a Railway
 
+
+// 👇 AGREGA ESTA LÍNEA AL INICIO DE TU ARCHIVO
+// require_once __DIR__ . '/shopify_token_check.php';
+
+
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
